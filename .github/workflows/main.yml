@@ -48,4 +48,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: rohlik_output
-          path: rohlik_output
+          path: ${{ env.HOME }}/Desktop/rohlik_output
