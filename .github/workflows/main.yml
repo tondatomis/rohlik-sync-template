@@ -41,7 +41,7 @@ jobs:
 
       - name: Run sync (headless)
         run: |
-          python rohlik_blocks_grid.py --headless --calendar-name "$GCAL_CALENDAR_NAME"
+          python rohlik_sync.py --headless --calendar-name "$GCAL_CALENDAR_NAME"
 
       - name: Upload artifacts (debug)
         if: always()
