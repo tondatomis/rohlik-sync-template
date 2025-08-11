@@ -25,11 +25,25 @@ OUT.mkdir(parents=True, exist_ok=True)
 TZ = ZoneInfo("Europe/Prague")
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
-# Google Calendar event colorId mapping:
-# 1=Lavender, 3=Grape, 7=Peacock, 10=Basil, atd.
-COLOR_2K = "1"  # Lavender
-COLOR_4K = "3"  # Grape
-COLOR_OTHER = "7"  # Peacock (libovolná jiná)
+# Google Calendar colorId palette (classic):
+# 1=Lavender, 2=Sage, 3=Grape, 4=Flamingo, 5=Banana, 6=Tangerine,
+# 7=Peacock, 8=Graphite, 9=Blueberry, 10=Basil, 11=Tomato
+# Requested mapping: 1K→Banana(5), 2K→Grape(3), 3K→Basil(10), 4K→Peacock(7)
+COLOR_MAP = {
+    1: "5",   # Banana
+    2: "3",   # Grape
+    3: "10",  # Basil
+    4: "7",   # Peacock
+}
+COLOR_OTHER = "8"  # Graphite (fallback)
+
+# Shift duration mapping in hours
+DUR_MAP = {
+    1: 5,
+    2: 9,
+    3: 12,
+    4: 15,
+}
 
 MONTHS = {
     "leden":1,"led":1,
@@ -187,14 +201,23 @@ def collect_grid_shifts(driver):
             continue
         hh, mm = int(tm.group(1)), int(tm.group(2))
 
-        # typ směny + barva
+        # typ směny + barva (detect generic nK or n kola)
         low = txt.lower()
-        if "4k" in low or "4 kola" in low:
-            dur = 15; label = "4K"; color = COLOR_4K
-        elif "2k" in low or "2 kola" in low:
-            dur = 9; label = "2K"; color = COLOR_2K
+        num_k = None
+        m_k = re.search(r"\b(\d+)\s*(k|kola)\b", low)
+        if m_k:
+            try:
+                num_k = int(m_k.group(1))
+            except Exception:
+                num_k = None
+        if num_k == 4:
+            dur = DUR_MAP[4]; label = "4K"; color = COLOR_MAP.get(4, COLOR_OTHER)
+        elif num_k == 2:
+            dur = DUR_MAP[2]; label = "2K"; color = COLOR_MAP.get(2, COLOR_OTHER)
+        elif isinstance(num_k, int):
+            dur = DUR_MAP.get(num_k, DUR_MAP[1]); label = f"{num_k}K"; color = COLOR_MAP.get(num_k, COLOR_OTHER)
         else:
-            dur = 9; label = "Směna"; color = COLOR_OTHER
+            dur = DUR_MAP[1]; label = "1K"; color = COLOR_MAP.get(1, COLOR_OTHER)
 
         start = datetime(year, month, day, hh, mm, tzinfo=TZ)
         end = start + timedelta(hours=dur)
@@ -288,7 +311,7 @@ def main():
         cal_id = find_or_create_calendar(svc, args.calendar_name)
         for t,s,e,c in events:
             upsert(svc, cal_id, t, s, e, c)
-        print("[DONE] Hotovo – zapsáno do Google kalendáře (barvy 4K=Grape, 2K=Lavender, jiné=Peacock).")
+        print("[DONE] Hotovo – zapsáno do Google kalendáře (barvy: 1K=Banana, 2K=Grape, 3K=Basil, 4K=Peacock).")
     finally:
         driver.quit()
 
