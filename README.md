@@ -18,7 +18,7 @@ a zapíše směny do Google kalendáře. Běží **1× měsíčně** a lze ho sp
 ## 2) Přidej Secrets (repo → Settings → Secrets and variables → Actions)
 Vytvoř postupně **5** secrets (každý přes „New repository secret“):
 
-- `ROHLIK_ID` — tvoje číselné ID (např. `16550`)
+- `ROHLIK_ID` — tvoje číselné ID (např. `20123`)
 - `ROHLIK_PIN` — PIN
 - `GCAL_CALENDAR_NAME` — název kalendáře (např. `Rohlik směny`)
 - `GOOGLE_CREDENTIALS_JSON` — **obsah** tvého `credentials.json` (z Google Cloud, OAuth Client „Desktop“)
