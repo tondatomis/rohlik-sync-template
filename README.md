@@ -8,7 +8,7 @@ a zapíše směny do Google kalendáře. Běží **1× měsíčně** a lze ho sp
   - **2K** → 9 h → barva **Lavender**
   - **4K** → 15 h → barva **Grape**
   - ostatní → 9 h → barva **Peacock**
-- Názvy událostí: např. `2K 05:30`, `4K 14:00`, atd.
+- Názvy událostí: např. `2K 05:30`, `4K 6:00`, atd.
 
 ---
 
