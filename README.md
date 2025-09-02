@@ -5,7 +5,6 @@ vyčte směny z aktuálního a příštího měsíce a zapíše je do **Google k
 
 - Funguje při **ručním spuštění** nebo v rámci GitHub Actions (měsíční CRON).
 - Automaticky rozlišuje délku směn a přiřazuje jim barvy v kalendáři podle počtu „kol“.
-
 ---
 
 ## Mapa barev a délek směn
