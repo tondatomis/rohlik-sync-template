@@ -2,9 +2,20 @@ name: Monthly Rohlik sync
 
 on:
   workflow_dispatch:
+  push:
+    # Stačí malá úprava některého z těchto souborů a běh se spustí
+    paths:
+      - ".github/workflows/rohlik_blocks_grid.yml"
+      - "rohlik_sync.py"
+      - "requirements.txt"
+      - "README.md"
   schedule:
-    # 2. den v měsíci v 06:15 (UTC) => 08:15 CET/CEST
+    # 2. den v měsíci v 06:15 UTC (≈ 08:15 CET/CEST)
     - cron: "15 6 2 * *"
+
+concurrency:
+  group: rohlik-sync
+  cancel-in-progress: true
 
 jobs:
   sync:
