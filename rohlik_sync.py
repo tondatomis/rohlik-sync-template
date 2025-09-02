@@ -19,7 +19,7 @@ from googleapiclient.discovery import build
 
 BASE = "https://couriers-portal.rohlik.cz/cz/"
 BLOCKS_URL = BASE + "?p=blocks"
-OUT = Path.home()/ "Desktop" / "rohlik_output"
+OUT = Path.home() / "Desktop" / "rohlik_output"
 OUT.mkdir(parents=True, exist_ok=True)
 
 TZ = ZoneInfo("Europe/Prague")
@@ -28,7 +28,7 @@ SCOPES = ["https://www.googleapis.com/auth/calendar"]
 # Google Calendar colorId palette (classic):
 # 1=Lavender, 2=Sage, 3=Grape, 4=Flamingo, 5=Banana, 6=Tangerine,
 # 7=Peacock, 8=Graphite, 9=Blueberry, 10=Basil, 11=Tomato
-# Requested mapping: 1K→Banana(5), 2K→Grape(3), 3K→Basil(10), 4K→Peacock(7)
+# Mapping: 1K→Banana(5), 2K→Grape(3), 3K→Basil(10), 4K→Peacock(7)
 COLOR_MAP = {
     1: "5",   # Banana
     2: "3",   # Grape
@@ -62,11 +62,7 @@ MONTHS = {
 TIME_RE = re.compile(r"\b([01]?\d|2[0-3]):([0-5]\d)\b", re.U)
 
 def load_env_from_dotenv_if_present() -> None:
-    """Load environment variables from a .env file next to this script if present.
-
-    Lines use KEY=VALUE, comments starting with # are ignored.
-    Existing os.environ values are preserved (do not override).
-    """
+    """Load environment variables from a .env file if present."""
     try:
         env_path = Path(__file__).with_name(".env")
         if not env_path.exists():
@@ -81,7 +77,6 @@ def load_env_from_dotenv_if_present() -> None:
             if key and key not in os.environ:
                 os.environ[key] = value
     except Exception:
-        # Fail silently – .env is optional
         pass
 
 def gcal_service():
@@ -89,14 +84,17 @@ def gcal_service():
     cred = Path(__file__).with_name("credentials.json")
     creds = None
     if tok.exists():
-        try: creds = Credentials.from_authorized_user_file(tok, SCOPES)
-        except Exception: creds = None
+        try:
+            creds = Credentials.from_authorized_user_file(tok, SCOPES)
+        except Exception:
+            creds = None
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
             if not cred.exists():
-                print("ERROR: Missing credentials.json", file=sys.stderr); sys.exit(1)
+                print("ERROR: Missing credentials.json", file=sys.stderr)
+                sys.exit(1)
             flow = InstalledAppFlow.from_client_secrets_file(str(cred), SCOPES)
             creds = flow.run_local_server(port=0)
         tok.write_text(creds.to_json())
@@ -109,9 +107,11 @@ def find_or_create_calendar(service, name: str) -> str:
             if it.get("summary") == name:
                 return it["id"]
         token = resp.get("nextPageToken")
-        if not token: break
+        if not token:
+            break
         resp = service.calendarList().list(pageToken=token).execute()
-    created = service.calendars().insert(body={"summary": name, "timeZone":"Europe/Prague"}).execute()
+    created = service.calendars().insert(
+        body={"summary": name, "timeZone": "Europe/Prague"}).execute()
     return created["id"]
 
 def upsert(service, cal_id, title, start, end, color_id):
@@ -121,28 +121,26 @@ def upsert(service, cal_id, title, start, end, color_id):
                                   singleEvents=True, orderBy="startTime").execute().get("items", [])
     body = {
         "summary": title,
-        "start": {"dateTime": start.isoformat(), "timeZone":"Europe/Prague"},
-        "end":   {"dateTime": end.isoformat(),   "timeZone":"Europe/Prague"},
+        "start": {"dateTime": start.isoformat(), "timeZone": "Europe/Prague"},
+        "end": {"dateTime": end.isoformat(), "timeZone": "Europe/Prague"},
         "colorId": color_id,
     }
-    # Prefer updating an event that already has the exact title
     for ev in items:
         if ev.get("summary") == title:
             service.events().update(calendarId=cal_id, eventId=ev["id"], body=body).execute()
-            print(f"[OK] Updated: {title} {start} → {end} (color {color_id})"); return
-    # Otherwise, update one that matches the exact time window (rename old titles)
+            print(f"[OK] Updated: {title} {start} → {end}"); return
     for ev in items:
         ev_start = ev.get("start", {}).get("dateTime")
         ev_end = ev.get("end", {}).get("dateTime")
         if ev_start == start.isoformat() and ev_end == end.isoformat():
             service.events().update(calendarId=cal_id, eventId=ev["id"], body=body).execute()
-            print(f"[OK] Renamed/Updated: {title} {start} → {end} (color {color_id})"); return
+            print(f"[OK] Renamed/Updated: {title} {start} → {end}"); return
     service.events().insert(calendarId=cal_id, body=body).execute()
-    print(f"[OK] Inserted: {title} {start} → {end} (color {color_id})")
+    print(f"[OK] Inserted: {title} {start} → {end}")
 
 def wait_ready(driver):
     for _ in range(80):
-        txt = driver.find_element(By.TAG_NAME,"body").text
+        txt = driver.find_element(By.TAG_NAME, "body").text
         if ("Načítám bloky" not in txt) and ("Pracuji" not in txt):
             break
         time.sleep(0.5)
@@ -151,17 +149,20 @@ def wait_ready(driver):
 def login_and_open(driver, uid, pin):
     wait = WebDriverWait(driver, 20)
     driver.get(BASE)
-    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='number'][name='username'][placeholder='ID']"))).send_keys(uid)
-    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='number'][name='password'][placeholder='PIN']"))).send_keys(pin)
-    wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "input[type='submit'][value='Přihlásit']"))).click()
-    wait.until(EC.presence_of_element_located((By.TAG_NAME,"body")))
+    wait.until(EC.presence_of_element_located(
+        (By.CSS_SELECTOR, "input[type='number'][name='username'][placeholder='ID']"))).send_keys(uid)
+    wait.until(EC.presence_of_element_located(
+        (By.CSS_SELECTOR, "input[type='number'][name='password'][placeholder='PIN']"))).send_keys(pin)
+    wait.until(EC.element_to_be_clickable(
+        (By.CSS_SELECTOR, "input[type='submit'][value='Přihlásit']"))).click()
+    wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
     time.sleep(0.8)
     driver.get(BLOCKS_URL)
-    wait.until(EC.presence_of_element_located((By.TAG_NAME,"body")))
+    wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
     wait_ready(driver)
 
 def parse_month_year(driver):
-    body = driver.find_element(By.TAG_NAME,"body").text.lower()
+    body = driver.find_element(By.TAG_NAME, "body").text.lower()
     m = re.search(r"(leden|únor|unor|březen|brezen|duben|květen|kveten|červenec|cervenec|červen|cerven|srpen|září|zari|říjen|rijen|listopad|prosinec)\s+(\d{4})", body)
     if m:
         month = MONTHS[m.group(1)]
@@ -171,7 +172,6 @@ def parse_month_year(driver):
     return now.year, now.month
 
 def collect_grid_shifts(driver):
-    """Vrátí list (title, start, end, color_id, raw_text)."""
     result = []
     year, month = parse_month_year(driver)
     els = driver.find_elements(By.XPATH, "//*[contains(@class,'calendar_day_shift')]")
@@ -179,29 +179,28 @@ def collect_grid_shifts(driver):
         txt = (el.text or "").strip()
         if not txt:
             continue
-        # den
         day = None
         did = el.get_attribute("id") or ""
         m = re.search(r"cal_day_shift_(\d+)", did)
-        if m: day = int(m.group(1))
+        if m:
+            day = int(m.group(1))
         if day is None:
             try:
                 anc = el.find_element(By.XPATH, "./ancestor::*[starts-with(@id,'cal_day_')]")
                 amid = anc.get_attribute("id") or ""
                 m2 = re.search(r"cal_day_(\d+)", amid)
-                if m2: day = int(m2.group(1))
+                if m2:
+                    day = int(m2.group(1))
             except Exception:
                 pass
         if day is None:
             continue
 
-        # čas
         tm = re.search(r"\b([01]?\d|2[0-3]):([0-5]\d)\b", txt)
         if not tm:
             continue
         hh, mm = int(tm.group(1)), int(tm.group(2))
 
-        # typ směny + barva (detect generic nK or n kola)
         low = txt.lower()
         num_k = None
         m_k = re.search(r"\b(\d+)\s*(k|kola)\b", low)
@@ -262,7 +261,6 @@ def process_two_months(driver):
     if click_next_month(driver):
         all_events += collect_grid_shifts(driver)
 
-    # dedupe
     uniq, seen = [], set()
     for t,s,e,c,_ in all_events:
         key = (t, s.isoformat(), e.isoformat())
@@ -278,7 +276,6 @@ def main():
     ap.add_argument("--dry-run", action="store_true", default=False)
     args = ap.parse_args()
 
-    # Optionally load credentials from .env next to this script
     load_env_from_dotenv_if_present()
 
     uid = os.getenv("ROHLIK_ID"); pin = os.getenv("ROHLIK_PIN")
@@ -298,7 +295,7 @@ def main():
         events = process_two_months(driver)
         print(f"[INFO] Nalezeno směn (2 měsíce): {len(events)}")
         for t,s,e,c in events:
-            print(f" - {t}: {s:%Y-%m-%d %H:%M} → {e:%H:%M}  | colorId={c}")
+            print(f" - {t}: {s:%Y-%m-%d %H:%M} → {e:%H:%M} | colorId={c}")
 
         if not events:
             (OUT/"candidates.txt").write_text(driver.find_element(By.TAG_NAME,"body").text, encoding="utf-8")
@@ -311,7 +308,7 @@ def main():
         cal_id = find_or_create_calendar(svc, args.calendar_name)
         for t,s,e,c in events:
             upsert(svc, cal_id, t, s, e, c)
-        print("[DONE] Hotovo – zapsáno do Google kalendáře (barvy: 1K=Banana, 2K=Grape, 3K=Basil, 4K=Peacock).")
+        print("[DONE] Hotovo – zapsáno do Google kalendáře")
     finally:
         driver.quit()
 
