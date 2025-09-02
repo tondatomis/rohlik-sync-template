@@ -2,8 +2,8 @@ name: Monthly Rohlik sync
 
 on:
   schedule:
-    # Spustí se každý měsíc 2. den v 06:00 UTC (08:00 Praha)
-    - cron: "0 6 2 * *"
+    # každý měsíc druhého dne ve 4 ráno
+    - cron: "0 4 2 * *"
   workflow_dispatch:
 
 jobs:
@@ -11,32 +11,32 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Check out repo
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Set up Chrome
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
 
-      - name: Setup Chrome
-        uses: browser-actions/setup-chrome@v1
+      - name: Restore Google credentials from secrets
+        run: |
+          echo "${{ secrets.GCAL_CREDENTIALS }}" > credentials.json
+          echo "${{ secrets.GCAL_TOKEN }}" > token.json
 
       - name: Run sync (headless)
-        env:
-          ROHLIK_ID: ${{ secrets.ROHLIK_ID }}
-          ROHLIK_PIN: ${{ secrets.ROHLIK_PIN }}
-        run: |
-          python rohlik_sync.py --headless
+        run: python rohlik_sync.py --calendar-name "Rohlik směny" --headless
 
       - name: Upload artifacts (debug)
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: rohlik-debug
+          name: rohlik_output
           path: ~/Desktop/rohlik_output
+          if-no-files-found: ignore
