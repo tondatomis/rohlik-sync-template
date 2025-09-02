@@ -1,62 +1,46 @@
 name: Monthly Rohlik sync
 
 on:
-  workflow_dispatch: {}               # ruční spuštění z GitHubu
   schedule:
-    - cron: "15 4 2 * *"              # každý měsíc 2. den v 04:15 UTC
+    - cron: "15 1 1 * *"   # 1. den v měsíci 01:15 UTC
+  workflow_dispatch: {}     # umožní ruční spuštění v Actions
 
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    # Propojení na secrets/vars (nic dalšího nemusíš měnit)
+    timeout-minutes: 25
     env:
+      TZ: Europe/Prague
       ROHLIK_ID: ${{ secrets.ROHLIK_ID }}
       ROHLIK_PIN: ${{ secrets.ROHLIK_PIN }}
+      GCAL_CALENDAR_NAME: ${{ secrets.GCAL_CALENDAR_NAME }}
       GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
       GOOGLE_TOKEN_JSON: ${{ secrets.GOOGLE_TOKEN_JSON }}
-      GCAL_CALENDAR_NAME: ${{ secrets.GCAL_CALENDAR_NAME }}  # nech prázdné = použije se default
 
     steps:
-      - name: Check out repo
-        uses: actions/checkout@v4
-
-      - name: Set up Chrome
-        uses: browser-actions/setup-chrome@v1
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: browser-actions/setup-chrome@v1
+      - uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install deps
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt
-          else
-            pip install selenium webdriver-manager google-api-python-client google-auth google-auth-oauthlib
-          fi
+          pip install -r requirements.txt
 
       - name: Restore Google credentials from secrets
         run: |
-          # zapíše credentials.json / token.json do pracovního adresáře
-          if [ -n "${GOOGLE_CREDENTIALS_JSON}" ]; then printf '%s' "${GOOGLE_CREDENTIALS_JSON}" > credentials.json; fi
-          if [ -n "${GOOGLE_TOKEN_JSON}" ];  then printf '%s' "${GOOGLE_TOKEN_JSON}"  > token.json;        fi
+          echo "$GOOGLE_CREDENTIALS_JSON" > credentials.json
+          echo "$GOOGLE_TOKEN_JSON" > token.json
 
       - name: Run sync (headless)
         run: |
-          # default kalendář, když není GCAL_CALENDAR_NAME vyplněné v secrets
-          CAL_NAME="${GCAL_CALENDAR_NAME:-Rohlik směny}"
-          python rohlik_sync.py --calendar-name "${CAL_NAME}" --headless
+          python rohlik_blocks_grid.py --headless --calendar-name "$GCAL_CALENDAR_NAME"
 
       - name: Upload artifacts (debug)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: rohlik-output
-          path: |
-            $HOME/Desktop/rohlik_output/**
-          if-no-files-found: ignore
-          retention-days: 7
+          name: rohlik_output
+          path: rohlik_output
