@@ -1,14 +1,22 @@
 name: Monthly Rohlik sync
 
 on:
-  schedule:
-    # každý měsíc druhého dne ve 4 ráno
-    - cron: "0 4 2 * *"
   workflow_dispatch:
+  schedule:
+    # 2. den v měsíci v 06:15 (UTC) => 08:15 CET/CEST
+    - cron: "15 6 2 * *"
 
 jobs:
   sync:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      ROHLIK_ID: ${{ secrets.ROHLIK_ID }}
+      ROHLIK_PIN: ${{ secrets.ROHLIK_PIN }}
+      GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+      GOOGLE_TOKEN_JSON: ${{ secrets.GOOGLE_TOKEN_JSON }}
+      GCAL_CALENDAR_NAME: ${{ vars.GCAL_CALENDAR_NAME || 'Rohlik směny' }}
 
     steps:
       - name: Check out repo
@@ -20,23 +28,54 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          python -V
+          pip -V
+          pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: Restore Google credentials from secrets
         run: |
-          echo "${{ secrets.GCAL_CREDENTIALS }}" > credentials.json
-          echo "${{ secrets.GCAL_TOKEN }}" > token.json
+          echo "$GOOGLE_CREDENTIALS_JSON" > credentials.json
+          echo "$GOOGLE_TOKEN_JSON" > token.json
+          ls -la
+
+      - name: Pre-flight diagnostics
+        run: |
+          echo "=== DIAG ==="
+          echo "Python:" $(python -V)
+          echo "Chrome:" $(google-chrome --version || true)
+          echo "CWD:" $(pwd)
+          echo "Repo root listing:"
+          ls -la
+          echo "Exists rohlik_sync.py?"; [ -f rohlik_sync.py ] && echo "YES" || echo "NO"
+          echo "Exists credentials.json?"; [ -f credentials.json ] && echo "YES" || echo "NO"
+          echo "Exists token.json?"; [ -f token.json ] && echo "YES" || echo "NO"
+          python - <<'PY'
+import os, pathlib
+print("ENV ROHLIK_ID present:", bool(os.getenv("ROHLIK_ID")))
+print("ENV ROHLIK_PIN present:", bool(os.getenv("ROHLIK_PIN")))
+print("Calendar name:", os.getenv("GCAL_CALENDAR_NAME"))
+print("File rohlik_sync.py exists:", pathlib.Path("rohlik_sync.py").exists())
+print("Files:", [p.name for p in pathlib.Path(".").iterdir()])
+PY
+          echo "=== END DIAG ==="
 
       - name: Run sync (headless)
-        run: python rohlik_sync.py --calendar-name "Rohlik směny" --headless
+        run: |
+          set -x
+          python rohlik_sync.py --calendar-name "${{ env.GCAL_CALENDAR_NAME }}" --headless
 
       - name: Upload artifacts (debug)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: rohlik_output
-          path: ~/Desktop/rohlik_output
+          path: |
+            grid.png
+            grid.html
+            rohlik_output/**/*
           if-no-files-found: ignore
